@@ -7,11 +7,36 @@ const WEEKLY_CONTENT_SELECT = `
   images:weekly_content_images(*)
 `
 
+function toDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// "이번 주"는 오늘이 속한 월요일~일요일 구간으로 판별한다.
+function getCurrentWeekRange(): { start: string; end: string } {
+  const today = new Date()
+  const dayOfWeek = today.getDay() // 0=일, 1=월, ..., 6=토
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diffToMonday)
+
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+
+  return { start: toDateString(monday), end: toDateString(sunday) }
+}
+
 export async function getThisWeekContent(): Promise<WeeklyContent | null> {
+  const { start, end } = getCurrentWeekRange()
+
   const { data, error } = await supabase
     .from('weekly_contents')
     .select(WEEKLY_CONTENT_SELECT)
-    .lte('service_date', new Date().toISOString().slice(0, 10))
+    .gte('service_date', start)
+    .lte('service_date', end)
     .order('service_date', { ascending: false })
     .limit(1)
     .maybeSingle()
