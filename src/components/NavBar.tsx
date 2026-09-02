@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+const FAVICON_SRC = '/favicon.png'
+
 export function NavBar() {
   const { profile, signOut } = useAuth()
 
@@ -14,6 +16,9 @@ export function NavBar() {
   return (
     <nav className="flex items-center justify-between border-b border-hairline bg-paper px-4">
       <div className="flex items-stretch gap-4">
+        <NavLink to="/" className="flex items-center py-3 pr-1" end>
+          <img src={FAVICON_SRC} alt="마중" className="h-6 w-6 rounded-md" />
+        </NavLink>
         <NavLink to="/" className={linkClass} end>
           이번 주
         </NavLink>
