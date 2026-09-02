@@ -22,7 +22,7 @@ export function NavBar() {
         </NavLink>
         {profile?.role === 'CONTENT_MANAGER' && (
           <NavLink to="/manage" className={linkClass}>
-            콘텐츠 등록
+            말씀 등록
           </NavLink>
         )}
       </div>

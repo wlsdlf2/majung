@@ -73,7 +73,7 @@ export function ContentEditorPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-5 pb-16">
-      <h1 className="mb-5 font-serif text-xl font-bold text-ink">콘텐츠 등록</h1>
+      <h1 className="mb-5 font-serif text-xl font-bold text-ink">말씀 등록</h1>
 
       <div className="mb-6 flex gap-2">
         <button
