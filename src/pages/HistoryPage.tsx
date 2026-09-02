@@ -3,9 +3,16 @@ import { useAuth } from '../context/AuthContext'
 import { getReflection, listPastContents } from '../lib/api'
 import type { Reflection, WeeklyContent } from '../types'
 
+const CURRENT_YEAR = new Date().getFullYear()
+
+function yearOf(serviceDate: string): number {
+  return Number(serviceDate.slice(0, 4))
+}
+
 export function HistoryPage() {
   const { profile } = useAuth()
   const [contents, setContents] = useState<WeeklyContent[]>([])
+  const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reflection, setReflection] = useState<Reflection | null>(null)
   const [loading, setLoading] = useState(true)
@@ -26,14 +33,37 @@ export function HistoryPage() {
 
   if (loading) return <div className="p-6 text-center text-sm text-ink-muted">불러오는 중...</div>
 
+  const years = Array.from(new Set([CURRENT_YEAR, ...contents.map((c) => yearOf(c.service_date))])).sort(
+    (a, b) => b - a,
+  )
+  const yearContents = contents.filter((c) => yearOf(c.service_date) === selectedYear)
+
   return (
     <div className="mx-auto max-w-2xl p-5">
-      <h1 className="mb-5 font-serif text-xl font-bold text-ink">지난 기록</h1>
+      <div className="mb-5 flex items-center justify-between">
+        <h1 className="font-serif text-xl font-bold text-ink">지난 기록</h1>
+        <select
+          value={selectedYear}
+          onChange={(e) => {
+            setSelectedYear(Number(e.target.value))
+            setSelectedId(null)
+          }}
+          className="rounded-lg border border-hairline bg-card px-3 py-1.5 text-sm font-bold text-ink focus:border-accent focus:outline-none"
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}년
+            </option>
+          ))}
+        </select>
+      </div>
 
-      {contents.length === 0 && <p className="text-sm text-ink-muted">등록된 기록이 없습니다.</p>}
+      {yearContents.length === 0 && (
+        <p className="text-sm text-ink-muted">{selectedYear}년에는 등록된 기록이 없습니다.</p>
+      )}
 
       <div className="flex flex-col gap-2">
-        {contents.map((c) => {
+        {yearContents.map((c) => {
           const isSelected = selectedId === c.id
           const sortedQuestions = isSelected
             ? [...(c.questions ?? [])].sort((a, b) => a.sort_order - b.sort_order)
