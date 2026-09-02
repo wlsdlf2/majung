@@ -8,7 +8,7 @@ import type { AppUser } from '../types'
 // 가짜 이메일로 매핑해 사용한다. (.local, .internal 등 예약 TLD는
 // Supabase의 이메일 형식 검증에서 거부되어 .com 형태를 사용한다.)
 function usernameToEmail(username: string) {
-  return `${username.trim().toLowerCase()}@cm-prep-app.com`
+  return `${username.trim().toLowerCase()}@majung.com`
 }
 
 interface AuthContextValue {
