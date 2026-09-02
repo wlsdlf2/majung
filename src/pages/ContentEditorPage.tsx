@@ -60,7 +60,12 @@ export function ContentEditorPage() {
       setSermonNoteText('')
       setQuestions([{ questionText: '', guideText: '' }])
     } catch (err) {
-      setError(err instanceof Error ? err.message : '등록에 실패했습니다.')
+      const code = (err as { code?: string } | null)?.code
+      if (code === '23505') {
+        setError('이미 등록된 예배일자입니다. 날짜를 다시 확인해주세요.')
+      } else {
+        setError(err instanceof Error ? err.message : '등록에 실패했습니다.')
+      }
     } finally {
       setSubmitting(false)
     }
