@@ -10,7 +10,7 @@ import { ThisWeekPage } from './pages/ThisWeekPage'
 
 function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper">
       <NavBar />
       {children}
     </div>
@@ -20,7 +20,7 @@ function AppLayout({ children }: { children: ReactNode }) {
 export default function App() {
   const { loading } = useAuth()
 
-  if (loading) return <div className="p-6 text-center text-gray-500">불러오는 중...</div>
+  if (loading) return <div className="p-6 text-center text-sm text-ink-muted">불러오는 중...</div>
 
   return (
     <Routes>

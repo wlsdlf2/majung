@@ -5,13 +5,15 @@ export function NavBar() {
   const { profile, signOut } = useAuth()
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `px-3 py-2 text-sm font-medium rounded-md ${
-      isActive ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+    `pb-1 text-sm border-b-2 ${
+      isActive
+        ? 'border-accent font-bold text-accent'
+        : 'border-transparent text-ink-muted hover:text-ink-soft'
     }`
 
   return (
-    <nav className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-      <div className="flex items-center gap-1">
+    <nav className="flex items-center justify-between border-b border-hairline bg-paper px-5 py-4">
+      <div className="flex items-baseline gap-5">
         <NavLink to="/" className={linkClass} end>
           이번 주
         </NavLink>
@@ -24,10 +26,7 @@ export function NavBar() {
           </NavLink>
         )}
       </div>
-      <button
-        onClick={() => void signOut()}
-        className="text-sm text-gray-400 hover:text-gray-700"
-      >
+      <button onClick={() => void signOut()} className="text-sm text-ink-faint hover:text-ink-muted">
         로그아웃
       </button>
     </nav>

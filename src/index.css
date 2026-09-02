@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+@theme {
+  --color-paper: #faf3e7;
+  --color-card: #fffdf7;
+  --color-hairline: #efe4d2;
+  --color-input: #fcf9f2;
+  --color-guide: #f1eee3;
+
+  --color-ink: #3a2f28;
+  --color-ink-soft: #5c4e42;
+  --color-ink-muted: #a79484;
+  --color-ink-faint: #b8a998;
+
+  --color-accent: #be6a4b;
+  --color-accent-hover: #9c5038;
+  --color-sage: #8fa07e;
+
+  --font-serif: "Gowun Batang", serif;
+  --font-sans: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+}
+
 :root {
   color-scheme: light;
 }
@@ -7,4 +27,23 @@
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
+  background-color: var(--color-paper);
+  font-family: var(--font-sans);
+}
+
+@layer components {
+  .card {
+    @apply bg-card border border-hairline rounded-2xl p-5;
+    box-shadow:
+      0 1px 2px rgba(58, 47, 40, 0.04),
+      0 6px 16px rgba(58, 47, 40, 0.05);
+  }
+
+  .field {
+    @apply bg-input border border-hairline rounded-xl px-3.5 py-3 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none;
+  }
+
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-hover rounded-xl px-6 py-3 text-sm font-bold text-card transition-colors disabled:opacity-50;
+  }
 }

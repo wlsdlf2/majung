@@ -59,22 +59,22 @@ export function ContentEditorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-4 pb-16">
-      <h1 className="mb-4 text-lg font-semibold text-gray-900">콘텐츠 등록</h1>
+    <div className="mx-auto max-w-2xl p-5 pb-16">
+      <h1 className="mb-5 font-serif text-xl font-bold text-ink">콘텐츠 등록</h1>
 
       <div className="mb-6 flex gap-2">
         <button
           onClick={() => setMode('TEXT')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${
-            mode === 'TEXT' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
+          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+            mode === 'TEXT' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
           }`}
         >
           텍스트로 등록
         </button>
         <button
           onClick={() => setMode('IMAGE')}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${
-            mode === 'IMAGE' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
+          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+            mode === 'IMAGE' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
           }`}
         >
           이미지로 등록
@@ -82,55 +82,55 @@ export function ContentEditorPage() {
       </div>
 
       {mode === 'IMAGE' ? (
-        <p className="rounded-xl bg-white p-4 text-sm text-gray-500 shadow-sm">
+        <p className="card text-sm leading-relaxed text-ink-muted">
           이미지 업로드 + AI 추출 기능은 Edge Function 프롬프트 설계 이후 연결될 예정입니다. (기획문서 9절)
           지금은 텍스트 등록을 이용해주세요.
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">예배일자</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-ink-soft">예배일자</label>
             <input
               type="date"
               value={serviceDate}
               onChange={(e) => setServiceDate(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="field w-full"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">본문 말씀</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-ink-soft">본문 말씀</label>
             <textarea
               value={passageText}
               onChange={(e) => setPassageText(e.target.value)}
               rows={4}
               required
-              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="field w-full resize-none"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">설교노트 (마크다운 지원)</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-ink-soft">설교노트 (마크다운 지원)</label>
             <textarea
               value={sermonNoteText}
               onChange={(e) => setSermonNoteText(e.target.value)}
               rows={6}
-              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="field w-full resize-none"
             />
           </div>
 
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">나눔 질문</label>
+            <label className="block text-sm font-bold text-ink-soft">나눔 질문</label>
             {questions.map((q, i) => (
-              <div key={i} className="space-y-2 rounded-xl border border-gray-200 p-3">
+              <div key={i} className="card space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400">질문 {i + 1}</span>
+                  <span className="text-xs text-ink-faint">질문 {i + 1}</span>
                   {questions.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeQuestion(i)}
-                      className="text-xs text-red-500 hover:underline"
+                      className="text-xs text-red-700 hover:underline"
                     >
                       삭제
                     </button>
@@ -140,33 +140,25 @@ export function ContentEditorPage() {
                   value={q.questionText}
                   onChange={(e) => updateQuestion(i, 'questionText', e.target.value)}
                   placeholder="질문 내용"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="field w-full"
                 />
                 <input
                   value={q.guideText}
                   onChange={(e) => updateQuestion(i, 'guideText', e.target.value)}
                   placeholder="해설/예시답변 (선택)"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  className="field w-full"
                 />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addQuestion}
-              className="text-sm text-indigo-600 hover:underline"
-            >
+            <button type="button" onClick={addQuestion} className="text-sm font-bold text-accent hover:text-accent-hover">
               + 질문 추가
             </button>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && <p className="text-sm text-green-600">등록되었습니다.</p>}
+          {error && <p className="text-sm text-red-700">{error}</p>}
+          {success && <p className="text-sm text-sage">등록되었습니다.</p>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={submitting} className="btn-primary w-full">
             {submitting ? '등록 중...' : '등록'}
           </button>
         </form>

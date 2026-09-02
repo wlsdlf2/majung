@@ -30,49 +30,45 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-semibold text-gray-900">마중</h1>
-        <p className="mb-6 text-sm text-gray-500">
+    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
+      <div className="card w-full max-w-sm p-9">
+        <h1 className="mb-2 font-serif text-3xl font-bold text-ink">마중</h1>
+        <p className="mb-7 text-sm leading-relaxed text-ink-muted">
           {mode === 'signin' ? '로그인해서 이번 주 나눔을 준비해요.' : '새 계정을 만들어요.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">아이디</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-ink-soft">아이디</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="field w-full"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">비밀번호</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-ink-soft">비밀번호</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="field w-full"
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-700">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={submitting} className="btn-primary w-full">
             {mode === 'signin' ? '로그인' : '회원가입'}
           </button>
         </form>
 
         <button
           onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-          className="mt-4 w-full text-center text-sm text-gray-500 hover:text-indigo-600"
+          className="mt-5 w-full text-center text-sm text-ink-muted hover:text-accent"
         >
           {mode === 'signin' ? '계정이 없나요? 회원가입' : '이미 계정이 있나요? 로그인'}
         </button>
