@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getReflection, listPastContents } from '../lib/api'
+import { yearOf } from '../lib/date'
 import type { Reflection, WeeklyContent } from '../types'
 
 const CURRENT_YEAR = new Date().getFullYear()
-
-function yearOf(serviceDate: string): number {
-  return Number(serviceDate.slice(0, 4))
-}
 
 export function HistoryPage() {
   const { profile } = useAuth()
