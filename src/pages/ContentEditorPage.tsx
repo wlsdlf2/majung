@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { createTextWeeklyContent } from '../lib/api'
+import { getCurrentWeekRange } from '../lib/date'
 
 interface QuestionDraft {
   questionText: string
@@ -33,9 +34,16 @@ export function ContentEditorPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!profile) return
-    setSubmitting(true)
     setError(null)
     setSuccess(false)
+
+    const { end } = getCurrentWeekRange()
+    if (serviceDate > end) {
+      setError(`예배일자는 이번 주 일요일(${end})까지만 등록할 수 있어요. 다음 주 콘텐츠는 그 주가 되면 등록해주세요.`)
+      return
+    }
+
+    setSubmitting(true)
     try {
       await createTextWeeklyContent({
         serviceDate,
