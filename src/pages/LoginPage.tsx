@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
+import logoMark from '../assets/logo-mark.svg'
 import { useAuth } from '../context/AuthContext'
 
 export function LoginPage() {
@@ -32,8 +33,15 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="card w-full max-w-sm p-9">
-        <h1 className="mb-2 font-serif text-3xl font-bold text-ink">마중</h1>
-        <p className="mb-7 text-sm leading-relaxed text-ink-muted">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-hairline bg-paper">
+            <img src={logoMark} alt="마중 로고" className="h-9 w-9" />
+          </div>
+          <h1 className="font-serif text-2xl font-bold text-ink">마중</h1>
+          <p className="mt-1 text-xs text-ink-faint">말씀을 먼저 만나는 시간</p>
+        </div>
+
+        <p className="mb-7 text-center text-sm leading-relaxed text-ink-muted">
           {mode === 'signin' ? '로그인해서 이번 주 나눔을 준비해요.' : '새 계정을 만들어요.'}
         </p>
 
