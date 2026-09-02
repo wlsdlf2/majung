@@ -25,9 +25,12 @@ export async function getThisWeekContent(): Promise<WeeklyContent | null> {
 }
 
 export async function listPastContents(): Promise<WeeklyContent[]> {
+  const { end } = getCurrentWeekRange()
+
   const { data, error } = await supabase
     .from('weekly_contents')
     .select(WEEKLY_CONTENT_SELECT)
+    .lte('service_date', end)
     .order('service_date', { ascending: false })
 
   if (error) throw error
