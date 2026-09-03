@@ -1,11 +1,13 @@
 // Supabase Edge Function: 설교노트 이미지 -> 비전 LLM -> 구조화된 JSON
 //
-// 여러 장의 이미지를 받아 Claude(비전)에게 전달하고, raw_extracted_text /
+// 여러 장의 이미지를 받아 Gemini(비전)에게 전달하고, raw_extracted_text /
 // sermon_note_text / questions로 구조화된 결과를 리턴한다. 구조화가 실패해도
 // raw_extracted_text는 항상 보존한다 (기획문서 6절).
 //
-// 배포 전 Supabase 프로젝트에 ANTHROPIC_API_KEY 시크릿 등록이 필요하다.
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// 배포 전 Supabase 프로젝트에 GEMINI_API_KEY 시크릿 등록이 필요하다.
+//   supabase secrets set GEMINI_API_KEY=AIza...
+
+const GEMINI_MODEL = 'gemini-2.5-pro'
 
 interface ExtractRequestBody {
   imageUrls: string[]
@@ -71,7 +73,8 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
-// Claude가 코드펜스(```json ... ```)로 감싸 응답하는 경우를 대비한 방어적 파싱.
+// responseMimeType: "application/json"으로 요청하지만, 혹시 모델이 코드펜스로
+// 감싸 응답하는 경우까지 대비한 방어적 파싱.
 function parseModelJson(text: string): ExtractedResult {
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
   const jsonText = fencedMatch ? fencedMatch[1] : text
@@ -103,47 +106,44 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'imageUrls가 필요합니다.' }, 400)
     }
 
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
     if (!apiKey) {
-      return jsonResponse({ error: 'ANTHROPIC_API_KEY가 설정되지 않았습니다.' }, 500)
+      return jsonResponse({ error: 'GEMINI_API_KEY가 설정되지 않았습니다.' }, 500)
     }
 
-    const imageContents = await Promise.all(
+    const imageParts = await Promise.all(
       imageUrls.map(async (url) => {
         const res = await fetch(url)
         if (!res.ok) throw new Error(`이미지를 불러오지 못했습니다: ${url}`)
         const buf = await res.arrayBuffer()
         const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
-        const mediaType = res.headers.get('content-type') ?? 'image/jpeg'
-        return {
-          type: 'image',
-          source: { type: 'base64', media_type: mediaType, data: base64 },
-        }
+        const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
+        return { inline_data: { mime_type: mimeType, data: base64 } }
       }),
     )
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 8192,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...imageContents,
-              { type: 'text', text: '위 설교노트 이미지들을 JSON 스키마에 맞춰 추출해주세요.' },
-            ],
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                ...imageParts,
+                { text: '위 설교노트 이미지들을 JSON 스키마에 맞춰 추출해주세요.' },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
           },
-        ],
-      }),
-    })
+        }),
+      },
+    )
 
     if (!response.ok) {
       const text = await response.text()
@@ -151,18 +151,18 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json()
-    const textBlock = data.content?.find((c: { type: string }) => c.type === 'text')
-    if (!textBlock?.text) {
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) {
       return jsonResponse({ error: 'LLM 응답에서 텍스트를 찾지 못했습니다.' }, 502)
     }
 
     let parsed: ExtractedResult
     try {
-      parsed = parseModelJson(textBlock.text)
+      parsed = parseModelJson(text)
     } catch {
       // 구조화 파싱이 실패해도 원문은 그대로 보존해서 리턴한다.
       return jsonResponse({
-        raw_extracted_text: textBlock.text,
+        raw_extracted_text: text,
         sermon_note_text: '',
         questions: [],
       })
