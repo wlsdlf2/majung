@@ -30,6 +30,11 @@ export function NavBar() {
             말씀 등록
           </NavLink>
         )}
+        {profile?.role === 'CONTENT_MANAGER' && (
+          <NavLink to="/trash" className={linkClass}>
+            휴지통
+          </NavLink>
+        )}
       </div>
       <button
         onClick={() => void signOut()}

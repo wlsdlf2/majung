@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getReflection, listPastContents } from '../lib/api'
+import { getReflection, listPastContents, softDeleteWeeklyContent } from '../lib/api'
 import { yearOf } from '../lib/date'
 import type { Reflection, WeeklyContent } from '../types'
 
@@ -14,6 +14,8 @@ export function HistoryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [reflection, setReflection] = useState<Reflection | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     listPastContents()
@@ -28,6 +30,21 @@ export function HistoryPage() {
     }
     getReflection(profile.id, selectedId).then(setReflection)
   }, [profile, selectedId])
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('이 콘텐츠를 삭제할까요? 삭제해도 휴지통에서 복구할 수 있어요.')) return
+    setDeletingId(id)
+    setDeleteError(null)
+    try {
+      await softDeleteWeeklyContent(id)
+      setContents((prev) => prev.filter((c) => c.id !== id))
+      setSelectedId((prev) => (prev === id ? null : prev))
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   if (loading) return <div className="p-6 text-center text-sm text-ink-muted">불러오는 중...</div>
 
@@ -55,6 +72,8 @@ export function HistoryPage() {
           ))}
         </select>
       </div>
+
+      {deleteError && <p className="mb-4 text-sm text-red-700">{deleteError}</p>}
 
       {yearContents.length === 0 && (
         <p className="text-sm text-ink-muted">{selectedYear}년에는 등록된 기록이 없습니다.</p>
@@ -89,13 +108,21 @@ export function HistoryPage() {
               {isSelected && (
                 <div className="space-y-4 border-t border-hairline p-4">
                   {profile?.role === 'CONTENT_MANAGER' && (
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-3">
                       <Link
                         to={`/manage/${c.id}`}
                         className="text-xs font-bold text-accent hover:text-accent-hover"
                       >
                         수정
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(c.id)}
+                        disabled={deletingId === c.id}
+                        className="text-xs font-bold text-red-700 hover:underline"
+                      >
+                        {deletingId === c.id ? '삭제 중...' : '삭제'}
+                      </button>
                     </div>
                   )}
                   <section>

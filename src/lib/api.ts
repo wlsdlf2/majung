@@ -14,6 +14,7 @@ export async function getThisWeekContent(): Promise<WeeklyContent | null> {
   const { data, error } = await supabase
     .from('weekly_contents')
     .select(WEEKLY_CONTENT_SELECT)
+    .is('deleted_at', null)
     .gte('service_date', start)
     .lte('service_date', end)
     .order('service_date', { ascending: false })
@@ -30,11 +31,41 @@ export async function listPastContents(): Promise<WeeklyContent[]> {
   const { data, error } = await supabase
     .from('weekly_contents')
     .select(WEEKLY_CONTENT_SELECT)
+    .is('deleted_at', null)
     .lte('service_date', end)
     .order('service_date', { ascending: false })
 
   if (error) throw error
   return (data ?? []) as WeeklyContent[]
+}
+
+export async function listDeletedContents(): Promise<WeeklyContent[]> {
+  const { data, error } = await supabase
+    .from('weekly_contents')
+    .select(WEEKLY_CONTENT_SELECT)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as WeeklyContent[]
+}
+
+// 실제로 행을 지우지 않고 deleted_at만 세운다 — CONTENT_MANAGER의 삭제는 즉시 모든
+// 사용자에게 영향을 주는 공용 자산 삭제라 실수해도 휴지통에서 되돌릴 수 있어야 한다.
+export async function softDeleteWeeklyContent(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('weekly_contents')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function restoreWeeklyContent(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('weekly_contents')
+    .update({ deleted_at: null })
+    .eq('id', id)
+  if (error) throw error
 }
 
 export async function getWeeklyContentById(id: string): Promise<WeeklyContent> {
@@ -112,20 +143,26 @@ async function insertQuestions(
   if (error) throw error
 }
 
-// 예배일자와 콘텐츠 유형(TEXT/IMAGE)은 수정 대상에서 제외한다 — 날짜는 등록의
-// 고유 식별자이고, 유형별 재작업(이미지 재업로드/재추출)은 등록 화면에서 새로
-// 등록하는 편이 낫다. 본문/설교노트/질문만 덮어쓴다.
+// 예배일자는 등록의 고유 식별자라 수정 대상에서 제외한다. 이미지를 재업로드하면
+// 원본 이미지 목록과 raw_extracted_text, 등록 유형을 함께 교체한다.
 export async function updateWeeklyContent(params: {
   id: string
   passageText: string
   sermonNoteText: string
   questions: { questionText: string; guideText: string | null }[]
+  images?: { rawExtractedText: string; imageUrls: string[] }
 }): Promise<WeeklyContent> {
-  const { id, passageText, sermonNoteText, questions } = params
+  const { id, passageText, sermonNoteText, questions, images } = params
 
   const { data: content, error: updateError } = await supabase
     .from('weekly_contents')
-    .update({ passage_text: passageText, sermon_note_text: sermonNoteText })
+    .update({
+      passage_text: passageText,
+      sermon_note_text: sermonNoteText,
+      ...(images
+        ? { raw_extracted_text: images.rawExtractedText, sermon_note_registration_type: 'IMAGE' }
+        : {}),
+    })
     .eq('id', id)
     .select()
     .single()
@@ -139,6 +176,26 @@ export async function updateWeeklyContent(params: {
   if (deleteError) throw deleteError
 
   await insertQuestions(id, questions)
+
+  if (images) {
+    const { error: deleteImagesError } = await supabase
+      .from('weekly_content_images')
+      .delete()
+      .eq('weekly_content_id', id)
+    if (deleteImagesError) throw deleteImagesError
+
+    if (images.imageUrls.length > 0) {
+      const imageRows = images.imageUrls.map((url, i) => ({
+        weekly_content_id: id,
+        image_url: url,
+        sort_order: i,
+      }))
+      const { error: insertImagesError } = await supabase
+        .from('weekly_content_images')
+        .insert(imageRows)
+      if (insertImagesError) throw insertImagesError
+    }
+  }
 
   return content as WeeklyContent
 }

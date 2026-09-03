@@ -37,6 +37,7 @@ export interface WeeklyContent {
   created_by: string | null
   created_at: string
   updated_at: string
+  deleted_at: string | null
   questions?: WeeklyContentQuestion[]
   images?: WeeklyContentImage[]
 }

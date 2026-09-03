@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getReflection, getThisWeekContent, saveReflection } from '../lib/api'
+import { getReflection, getThisWeekContent, saveReflection, softDeleteWeeklyContent } from '../lib/api'
 import type { WeeklyContent } from '../types'
 
 export function ThisWeekPage() {
@@ -12,6 +12,7 @@ export function ThisWeekPage() {
   const [showRawImages, setShowRawImages] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,6 +72,21 @@ export function ThisWeekPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!content) return
+    if (!window.confirm('이 콘텐츠를 삭제할까요? 삭제해도 휴지통에서 복구할 수 있어요.')) return
+    setDeleting(true)
+    setError(null)
+    try {
+      await softDeleteWeeklyContent(content.id)
+      setContent(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) return <div className="p-6 text-center text-sm text-ink-muted">불러오는 중...</div>
 
   if (!content) {
@@ -91,9 +107,19 @@ export function ThisWeekPage() {
           <h1 className="font-serif text-xl font-bold text-ink">이번 주 나눔 준비</h1>
         </div>
         {profile?.role === 'CONTENT_MANAGER' && (
-          <Link to={`/manage/${content.id}`} className="mt-1 text-xs font-bold text-accent hover:text-accent-hover">
-            수정
-          </Link>
+          <div className="mt-1 flex items-center gap-3">
+            <Link to={`/manage/${content.id}`} className="text-xs font-bold text-accent hover:text-accent-hover">
+              수정
+            </Link>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+              className="text-xs font-bold text-red-700 hover:underline"
+            >
+              {deleting ? '삭제 중...' : '삭제'}
+            </button>
+          </div>
         )}
       </header>
 

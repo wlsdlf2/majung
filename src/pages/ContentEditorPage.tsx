@@ -91,6 +91,7 @@ export function ContentEditorPage() {
   // 수정 모드 전용 상태
   const [loadingContent, setLoadingContent] = useState(isEditMode)
   const [originalImages, setOriginalImages] = useState<WeeklyContentImage[]>([])
+  const [reuploadImages, setReuploadImages] = useState(false)
 
   useEffect(() => {
     if (!editingId) return
@@ -106,6 +107,11 @@ export function ContentEditorPage() {
         setPassageText(content.passage_text ?? '')
         setSermonNoteText(content.sermon_note_text ?? '')
         setOriginalImages([...(content.images ?? [])].sort((a, b) => a.sort_order - b.sort_order))
+        setReuploadImages(false)
+        setImageStep('select')
+        setImageFiles([])
+        setImageUrls([])
+        setRawExtractedText('')
         const sortedQuestions = [...(content.questions ?? [])].sort((a, b) => a.sort_order - b.sort_order)
         setQuestions(
           sortedQuestions.length > 0
@@ -207,6 +213,11 @@ export function ContentEditorPage() {
       .filter((q) => q.questionText.trim().length > 0)
       .map((q) => ({ questionText: q.questionText, guideText: q.guideText || null }))
 
+    if (isEditMode && reuploadImages && imageStep !== 'review') {
+      setError('새 이미지 추출을 완료하거나 재업로드를 취소해주세요.')
+      return
+    }
+
     setSubmitting(true)
     try {
       if (isEditMode) {
@@ -215,6 +226,7 @@ export function ContentEditorPage() {
           passageText,
           sermonNoteText,
           questions: cleanedQuestions,
+          images: reuploadImages ? { rawExtractedText, imageUrls } : undefined,
         })
         navigate('/history')
         return
@@ -317,21 +329,112 @@ export function ContentEditorPage() {
 
         {isEditMode ? (
           <>
-            {originalImages.length > 0 && (
-              <div className="card space-y-3">
-                <label className="text-sm font-bold text-ink-soft">원본 이미지</label>
-                <div className="flex gap-2 overflow-x-auto">
-                  {originalImages.map((img) => (
-                    <img
-                      key={img.id}
-                      src={img.image_url}
-                      alt="설교노트 원본"
-                      className="h-32 w-24 shrink-0 rounded-lg object-cover"
-                    />
-                  ))}
-                </div>
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-ink-soft">
+                  {reuploadImages ? '새 이미지' : '원본 이미지'}
+                </label>
+                {!reuploadImages && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReuploadImages(true)
+                      setImageStep('select')
+                    }}
+                    className="text-xs text-accent hover:text-accent-hover"
+                  >
+                    이미지 재업로드
+                  </button>
+                )}
               </div>
-            )}
+
+              {!reuploadImages ? (
+                originalImages.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto">
+                    {originalImages.map((img) => (
+                      <img
+                        key={img.id}
+                        src={img.image_url}
+                        alt="설교노트 원본"
+                        className="h-32 w-24 shrink-0 rounded-lg object-cover"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-ink-faint">등록된 이미지가 없습니다.</p>
+                )
+              ) : imageStep === 'review' ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-ink-faint">추출 완료 (아래 설교노트에서 확인·수정해주세요)</span>
+                    <button
+                      type="button"
+                      onClick={() => setImageStep('select')}
+                      className="text-xs text-accent hover:text-accent-hover"
+                    >
+                      다시 선택
+                    </button>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {imageUrls.map((url, i) => (
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`새 이미지 ${i + 1}`}
+                        className="h-32 w-24 shrink-0 rounded-lg object-cover"
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFilesSelected(e.target.files)}
+                    className="block w-full text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-paper file:px-3 file:py-2 file:text-sm file:font-bold file:text-ink-soft"
+                  />
+                  {imageFiles.length > 0 && (
+                    <ul className="space-y-1">
+                      {imageFiles.map((f, i) => (
+                        <li key={i} className="flex items-center justify-between text-xs text-ink-muted">
+                          <span className="truncate">{f.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeImageFile(i)}
+                            className="ml-2 shrink-0 text-red-700 hover:underline"
+                          >
+                            삭제
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleExtract()}
+                      disabled={imageStep === 'extracting'}
+                      className="btn-primary flex-1"
+                    >
+                      {imageStep === 'extracting' ? 'AI가 읽는 중...' : 'AI로 추출하기'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReuploadImages(false)
+                        setImageFiles([])
+                      }}
+                      disabled={imageStep === 'extracting'}
+                      className="rounded-xl px-4 py-2.5 text-sm font-bold text-ink-muted hover:text-ink-soft"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-bold text-ink-soft">설교노트</label>
               <textarea
@@ -469,7 +572,9 @@ export function ContentEditorPage() {
         {error && <p className="text-sm text-red-700">{error}</p>}
         {success && <p className="text-sm text-sage">등록되었습니다.</p>}
 
-        {(isEditMode || mode === 'TEXT' || imageStep === 'review') && (
+        {(isEditMode
+          ? !reuploadImages || imageStep === 'review'
+          : mode === 'TEXT' || imageStep === 'review') && (
           <button type="submit" disabled={submitting} className="btn-primary w-full">
             {submitting ? '저장 중...' : isEditMode ? '수정 저장' : '확정 등록'}
           </button>

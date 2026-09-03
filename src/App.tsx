@@ -7,6 +7,7 @@ import { ContentEditorPage } from './pages/ContentEditorPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { ThisWeekPage } from './pages/ThisWeekPage'
+import { TrashPage } from './pages/TrashPage'
 
 function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -61,6 +62,16 @@ export default function App() {
           <ProtectedRoute requireContentManager>
             <AppLayout>
               <ContentEditorPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trash"
+        element={
+          <ProtectedRoute requireContentManager>
+            <AppLayout>
+              <TrashPage />
             </AppLayout>
           </ProtectedRoute>
         }
