@@ -130,6 +130,27 @@ export async function createTextWeeklyContent(params: {
   return content as WeeklyContent
 }
 
+// base64로 인코딩된 원본 이미지를 그대로 비전 LLM에 보내면 페이로드가 너무 커져
+// Gemini가 503(과부하)을 반환하는 걸 확인했다. 업로드 전에 긴 변 1200px,
+// JPEG 85%로 리사이즈해 페이로드를 줄인다.
+async function resizeImageFile(file: File, maxDim = 1200, quality = 0.85): Promise<Blob> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('이미지를 처리할 수 없습니다.')
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', quality),
+  )
+  if (!blob) throw new Error('이미지를 처리할 수 없습니다.')
+  return blob
+}
+
 // 설교노트 원본 이미지를 Storage에 올리고 공개 URL 목록을 순서대로 반환한다.
 export async function uploadSermonNoteImages(
   serviceDate: string,
@@ -138,10 +159,12 @@ export async function uploadSermonNoteImages(
   const urls: string[] = []
 
   for (const file of files) {
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${serviceDate}/${crypto.randomUUID()}.${ext}`
+    const resized = await resizeImageFile(file)
+    const path = `${serviceDate}/${crypto.randomUUID()}.jpg`
 
-    const { error } = await supabase.storage.from('sermon-note-images').upload(path, file)
+    const { error } = await supabase.storage
+      .from('sermon-note-images')
+      .upload(path, resized, { contentType: 'image/jpeg' })
     if (error) throw error
 
     const { data } = supabase.storage.from('sermon-note-images').getPublicUrl(path)

@@ -7,7 +7,7 @@
 // 배포 전 Supabase 프로젝트에 GEMINI_API_KEY 시크릿 등록이 필요하다.
 //   supabase secrets set GEMINI_API_KEY=AIza...
 
-const GEMINI_MODEL = 'gemini-2.5-pro'
+const GEMINI_MODEL = 'gemini-3.6-flash'
 
 interface ExtractRequestBody {
   imageUrls: string[]
@@ -66,6 +66,18 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// String.fromCharCode(...bytes)는 인자 개수 제한 때문에 큰 이미지에서
+// "Maximum call stack size exceeded"를 일으키므로 청크 단위로 변환한다.
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  const chunkSize = 0x8000
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -116,9 +128,9 @@ Deno.serve(async (req: Request) => {
         const res = await fetch(url)
         if (!res.ok) throw new Error(`이미지를 불러오지 못했습니다: ${url}`)
         const buf = await res.arrayBuffer()
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+        const base64 = arrayBufferToBase64(buf)
         const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
-        return { inline_data: { mime_type: mimeType, data: base64 } }
+        return { inlineData: { mimeType, data: base64 } }
       }),
     )
 
@@ -128,7 +140,7 @@ Deno.serve(async (req: Request) => {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
           contents: [
             {
               role: 'user',

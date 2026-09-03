@@ -57,6 +57,12 @@ Supabase Auth에 그대로 위임하는 방식으로 구현했습니다. 실제 
 
 ## 아직 안 된 것
 
-- 설교노트 이미지 업로드 + AI 추출 Edge Function 연동 (스켈레톤은 `supabase/functions/extract-sermon-note`에 있음, 비전 LLM 모델/프롬프트 상세는 기획문서 9절 기준 미확정)
 - 카카오 소셜로그인
 - 커스텀 도메인 연결 (지금은 `majung.pages.dev` 기본 도메인만 사용)
+
+## 설교노트 이미지 AI 추출 참고
+
+`supabase/functions/extract-sermon-note`가 Google Gemini(`gemini-3.6-flash`) 비전 API로 이미지를 구조화한다. 배포 전 Supabase 프로젝트에 `GEMINI_API_KEY` 시크릿 등록이 필요하다.
+
+- Gemini REST API는 필드명이 camelCase(`inlineData`, `mimeType`, `systemInstruction`)여야 한다. snake_case로 보내면 즉시 400이 아니라 `503 UNAVAILABLE`(high demand)로 애매하게 실패해서 디버깅이 오래 걸렸다.
+- base64로 인코딩한 원본 이미지를 그대로 보내면 페이로드가 커져서 역시 503을 유발한다. `src/lib/api.ts`의 `uploadSermonNoteImages`가 업로드 전 캔버스로 긴 변 1200px/JPEG 85%로 리사이즈해서 올린다.
