@@ -13,8 +13,20 @@
 ## 현재 상태
 
 - Supabase 프로젝트(`majung`, ap-northeast-2) 생성 완료, GitHub(`wlsdlf2/majung`) 연동 완료
-- `0001_init.sql`, `0002_grants.sql` 마이그레이션 적용 완료
-- 회원가입 → 로그인 → "이번 주" 화면 로딩까지 로컬에서 동작 확인 완료
+- `0001_init.sql` ~ `0003_ondelete_policy.sql` 마이그레이션 적용 완료
+- 회원가입 → 로그인 → "이번 주" 화면 로딩까지 동작 확인 완료
+- Cloudflare Pages 배포 완료: https://majung.pages.dev (GitHub `main` 브랜치 push 시 자동 재배포)
+
+## 배포 (Cloudflare Pages)
+
+Workers & Pages → Import an existing Git repository → `wlsdlf2/majung` 선택. 설정값:
+
+- Framework preset: `React (Vite)`
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Production/Preview 둘 다)
+
+`public/_redirects`에 `/* /index.html 200`을 넣어뒀다 — React Router로 클라이언트 라우팅을 하기 때문에, 이게 없으면 `/history`처럼 `/` 이외의 경로를 새로고침하거나 직접 접속할 때 Cloudflare가 404를 반환한다.
 
 ## 로컬 개발 준비
 
@@ -46,5 +58,5 @@ Supabase Auth에 그대로 위임하는 방식으로 구현했습니다. 실제 
 ## 아직 안 된 것
 
 - 설교노트 이미지 업로드 + AI 추출 Edge Function 연동 (스켈레톤은 `supabase/functions/extract-sermon-note`에 있음, 비전 LLM 모델/프롬프트 상세는 기획문서 9절 기준 미확정)
-- 배포 (Vercel 등) 설정
 - 카카오 소셜로그인
+- 커스텀 도메인 연결 (지금은 `majung.pages.dev` 기본 도메인만 사용)
