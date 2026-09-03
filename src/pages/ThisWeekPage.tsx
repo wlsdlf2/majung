@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getReflection, getThisWeekContent, saveReflection } from '../lib/api'
 import type { WeeklyContent } from '../types'
@@ -84,9 +85,16 @@ export function ThisWeekPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-5 pb-28">
-      <header className="pb-1">
-        <p className="mb-1 text-xs text-ink-muted">{content.service_date}</p>
-        <h1 className="font-serif text-xl font-bold text-ink">이번 주 나눔 준비</h1>
+      <header className="flex items-start justify-between pb-1">
+        <div>
+          <p className="mb-1 text-xs text-ink-muted">{content.service_date}</p>
+          <h1 className="font-serif text-xl font-bold text-ink">이번 주 나눔 준비</h1>
+        </div>
+        {profile?.role === 'CONTENT_MANAGER' && (
+          <Link to={`/manage/${content.id}`} className="mt-1 text-xs font-bold text-accent hover:text-accent-hover">
+            수정
+          </Link>
+        )}
       </header>
 
       <section className="card">

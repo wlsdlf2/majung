@@ -1,12 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   createImageWeeklyContent,
   createTextWeeklyContent,
   extractSermonNote,
+  getWeeklyContentById,
+  updateWeeklyContent,
   uploadSermonNoteImages,
 } from '../lib/api'
 import { getCurrentWeekRange } from '../lib/date'
+import type { WeeklyContentImage } from '../types'
 
 interface QuestionDraft {
   questionText: string
@@ -64,6 +68,10 @@ function QuestionEditor({
 
 export function ContentEditorPage() {
   const { profile } = useAuth()
+  const { id: editingId } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const isEditMode = Boolean(editingId)
+
   const [mode, setMode] = useState<'TEXT' | 'IMAGE'>('TEXT')
   const [serviceDate, setServiceDate] = useState('')
   const [passageText, setPassageText] = useState('')
@@ -79,6 +87,43 @@ export function ContentEditorPage() {
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [rawExtractedText, setRawExtractedText] = useState('')
   const [showRawText, setShowRawText] = useState(false)
+
+  // 수정 모드 전용 상태
+  const [loadingContent, setLoadingContent] = useState(isEditMode)
+  const [originalImages, setOriginalImages] = useState<WeeklyContentImage[]>([])
+
+  useEffect(() => {
+    if (!editingId) return
+    let cancelled = false
+
+    async function load() {
+      setLoadingContent(true)
+      setError(null)
+      try {
+        const content = await getWeeklyContentById(editingId!)
+        if (cancelled) return
+        setServiceDate(content.service_date)
+        setPassageText(content.passage_text ?? '')
+        setSermonNoteText(content.sermon_note_text ?? '')
+        setOriginalImages([...(content.images ?? [])].sort((a, b) => a.sort_order - b.sort_order))
+        const sortedQuestions = [...(content.questions ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+        setQuestions(
+          sortedQuestions.length > 0
+            ? sortedQuestions.map((q) => ({ questionText: q.question_text, guideText: q.guide_text ?? '' }))
+            : [{ questionText: '', guideText: '' }],
+        )
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : '불러오기에 실패했습니다.')
+      } finally {
+        if (!cancelled) setLoadingContent(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [editingId])
 
   function updateQuestion(index: number, field: keyof QuestionDraft, value: string) {
     setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, [field]: value } : q)))
@@ -158,18 +203,29 @@ export function ContentEditorPage() {
     setError(null)
     setSuccess(false)
 
-    const { end } = getCurrentWeekRange()
-    if (serviceDate > end) {
-      setError(`예배일자는 이번 주 일요일(${end})까지만 등록할 수 있어요. 다음 주 콘텐츠는 그 주가 되면 등록해주세요.`)
-      return
-    }
-
     const cleanedQuestions = questions
       .filter((q) => q.questionText.trim().length > 0)
       .map((q) => ({ questionText: q.questionText, guideText: q.guideText || null }))
 
     setSubmitting(true)
     try {
+      if (isEditMode) {
+        await updateWeeklyContent({
+          id: editingId!,
+          passageText,
+          sermonNoteText,
+          questions: cleanedQuestions,
+        })
+        navigate('/history')
+        return
+      }
+
+      const { end } = getCurrentWeekRange()
+      if (serviceDate > end) {
+        setError(`예배일자는 이번 주 일요일(${end})까지만 등록할 수 있어요. 다음 주 콘텐츠는 그 주가 되면 등록해주세요.`)
+        return
+      }
+
       if (mode === 'TEXT') {
         await createTextWeeklyContent({
           serviceDate,
@@ -196,46 +252,56 @@ export function ContentEditorPage() {
       if (code === '23505') {
         setError('이미 등록된 예배일자입니다. 날짜를 다시 확인해주세요.')
       } else {
-        setError(err instanceof Error ? err.message : '등록에 실패했습니다.')
+        setError(err instanceof Error ? err.message : isEditMode ? '수정에 실패했습니다.' : '등록에 실패했습니다.')
       }
     } finally {
       setSubmitting(false)
     }
   }
 
+  if (loadingContent) {
+    return <div className="p-6 text-center text-sm text-ink-muted">불러오는 중...</div>
+  }
+
   return (
     <div className="mx-auto max-w-2xl p-5 pb-16">
-      <h1 className="mb-5 font-serif text-xl font-bold text-ink">말씀 등록</h1>
+      <h1 className="mb-5 font-serif text-xl font-bold text-ink">{isEditMode ? '말씀 수정' : '말씀 등록'}</h1>
 
-      <div className="mb-6 flex gap-2">
-        <button
-          onClick={() => setMode('TEXT')}
-          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
-            mode === 'TEXT' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
-          }`}
-        >
-          텍스트로 등록
-        </button>
-        <button
-          onClick={() => setMode('IMAGE')}
-          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
-            mode === 'IMAGE' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
-          }`}
-        >
-          이미지로 등록
-        </button>
-      </div>
+      {!isEditMode && (
+        <div className="mb-6 flex gap-2">
+          <button
+            onClick={() => setMode('TEXT')}
+            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+              mode === 'TEXT' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
+            }`}
+          >
+            텍스트로 등록
+          </button>
+          <button
+            onClick={() => setMode('IMAGE')}
+            className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+              mode === 'IMAGE' ? 'bg-accent text-card' : 'bg-card text-ink-muted hover:text-ink-soft'
+            }`}
+          >
+            이미지로 등록
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-ink-soft">예배일자</label>
-          <input
-            type="date"
-            value={serviceDate}
-            onChange={(e) => setServiceDate(e.target.value)}
-            required
-            className="field w-full"
-          />
+          {isEditMode ? (
+            <p className="field w-full text-ink-soft">{serviceDate}</p>
+          ) : (
+            <input
+              type="date"
+              value={serviceDate}
+              onChange={(e) => setServiceDate(e.target.value)}
+              required
+              className="field w-full"
+            />
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -249,7 +315,40 @@ export function ContentEditorPage() {
           />
         </div>
 
-        {mode === 'TEXT' ? (
+        {isEditMode ? (
+          <>
+            {originalImages.length > 0 && (
+              <div className="card space-y-3">
+                <label className="text-sm font-bold text-ink-soft">원본 이미지</label>
+                <div className="flex gap-2 overflow-x-auto">
+                  {originalImages.map((img) => (
+                    <img
+                      key={img.id}
+                      src={img.image_url}
+                      alt="설교노트 원본"
+                      className="h-32 w-24 shrink-0 rounded-lg object-cover"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="block text-sm font-bold text-ink-soft">설교노트</label>
+              <textarea
+                value={sermonNoteText}
+                onChange={(e) => setSermonNoteText(e.target.value)}
+                rows={6}
+                className="field w-full resize-none"
+              />
+            </div>
+            <QuestionEditor
+              questions={questions}
+              onUpdate={updateQuestion}
+              onAdd={addQuestion}
+              onRemove={removeQuestion}
+            />
+          </>
+        ) : mode === 'TEXT' ? (
           <>
             <div className="space-y-1.5">
               <label className="block text-sm font-bold text-ink-soft">설교노트 (마크다운 지원)</label>
@@ -370,9 +469,9 @@ export function ContentEditorPage() {
         {error && <p className="text-sm text-red-700">{error}</p>}
         {success && <p className="text-sm text-sage">등록되었습니다.</p>}
 
-        {(mode === 'TEXT' || imageStep === 'review') && (
+        {(isEditMode || mode === 'TEXT' || imageStep === 'review') && (
           <button type="submit" disabled={submitting} className="btn-primary w-full">
-            {submitting ? '등록 중...' : '확정 등록'}
+            {submitting ? '저장 중...' : isEditMode ? '수정 저장' : '확정 등록'}
           </button>
         )}
       </form>

@@ -37,6 +37,17 @@ export async function listPastContents(): Promise<WeeklyContent[]> {
   return (data ?? []) as WeeklyContent[]
 }
 
+export async function getWeeklyContentById(id: string): Promise<WeeklyContent> {
+  const { data, error } = await supabase
+    .from('weekly_contents')
+    .select(WEEKLY_CONTENT_SELECT)
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data as WeeklyContent
+}
+
 export async function getReflection(
   userId: string,
   weeklyContentId: string,
@@ -99,6 +110,37 @@ async function insertQuestions(
   }))
   const { error } = await supabase.from('weekly_content_questions').insert(rows)
   if (error) throw error
+}
+
+// 예배일자와 콘텐츠 유형(TEXT/IMAGE)은 수정 대상에서 제외한다 — 날짜는 등록의
+// 고유 식별자이고, 유형별 재작업(이미지 재업로드/재추출)은 등록 화면에서 새로
+// 등록하는 편이 낫다. 본문/설교노트/질문만 덮어쓴다.
+export async function updateWeeklyContent(params: {
+  id: string
+  passageText: string
+  sermonNoteText: string
+  questions: { questionText: string; guideText: string | null }[]
+}): Promise<WeeklyContent> {
+  const { id, passageText, sermonNoteText, questions } = params
+
+  const { data: content, error: updateError } = await supabase
+    .from('weekly_contents')
+    .update({ passage_text: passageText, sermon_note_text: sermonNoteText })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (updateError) throw updateError
+
+  const { error: deleteError } = await supabase
+    .from('weekly_content_questions')
+    .delete()
+    .eq('weekly_content_id', id)
+  if (deleteError) throw deleteError
+
+  await insertQuestions(id, questions)
+
+  return content as WeeklyContent
 }
 
 export async function createTextWeeklyContent(params: {

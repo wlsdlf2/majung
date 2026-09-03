@@ -55,6 +55,16 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/manage/:id"
+        element={
+          <ProtectedRoute requireContentManager>
+            <AppLayout>
+              <ContentEditorPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

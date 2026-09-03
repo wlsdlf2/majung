@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getReflection, listPastContents } from '../lib/api'
 import { yearOf } from '../lib/date'
@@ -87,6 +88,16 @@ export function HistoryPage() {
 
               {isSelected && (
                 <div className="space-y-4 border-t border-hairline p-4">
+                  {profile?.role === 'CONTENT_MANAGER' && (
+                    <div className="flex justify-end">
+                      <Link
+                        to={`/manage/${c.id}`}
+                        className="text-xs font-bold text-accent hover:text-accent-hover"
+                      >
+                        수정
+                      </Link>
+                    </div>
+                  )}
                   <section>
                     <h2 className="mb-2 text-xs font-bold tracking-wide text-sage">나의 묵상</h2>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">
