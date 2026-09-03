@@ -85,6 +85,22 @@ export async function saveReflection(params: {
   }
 }
 
+async function insertQuestions(
+  weeklyContentId: string,
+  questions: { questionText: string; guideText: string | null }[],
+): Promise<void> {
+  if (questions.length === 0) return
+
+  const rows = questions.map((q, i) => ({
+    weekly_content_id: weeklyContentId,
+    question_text: q.questionText,
+    guide_text: q.guideText,
+    sort_order: i,
+  }))
+  const { error } = await supabase.from('weekly_content_questions').insert(rows)
+  if (error) throw error
+}
+
 export async function createTextWeeklyContent(params: {
   serviceDate: string
   passageText: string
@@ -109,16 +125,97 @@ export async function createTextWeeklyContent(params: {
 
   if (contentError) throw contentError
 
-  if (questions.length > 0) {
-    const rows = questions.map((q, i) => ({
+  await insertQuestions(content.id, questions)
+
+  return content as WeeklyContent
+}
+
+// 설교노트 원본 이미지를 Storage에 올리고 공개 URL 목록을 순서대로 반환한다.
+export async function uploadSermonNoteImages(
+  serviceDate: string,
+  files: File[],
+): Promise<string[]> {
+  const urls: string[] = []
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${serviceDate}/${crypto.randomUUID()}.${ext}`
+
+    const { error } = await supabase.storage.from('sermon-note-images').upload(path, file)
+    if (error) throw error
+
+    const { data } = supabase.storage.from('sermon-note-images').getPublicUrl(path)
+    urls.push(data.publicUrl)
+  }
+
+  return urls
+}
+
+export interface ExtractedSermonNote {
+  raw_extracted_text: string
+  sermon_note_text: string
+  questions: { question: string; guide_text: string | null }[]
+}
+
+// 업로드된 이미지 URL을 Edge Function에 전달해 비전 LLM으로 구조화한 결과를 받는다.
+export async function extractSermonNote(imageUrls: string[]): Promise<ExtractedSermonNote> {
+  const { data, error } = await supabase.functions.invoke<
+    ExtractedSermonNote & { error?: string }
+  >('extract-sermon-note', { body: { imageUrls } })
+
+  if (error) throw error
+  if (!data) throw new Error('추출 결과를 받지 못했습니다.')
+  if (data.error) throw new Error(data.error)
+
+  return data
+}
+
+export async function createImageWeeklyContent(params: {
+  serviceDate: string
+  passageText: string
+  sermonNoteText: string
+  rawExtractedText: string
+  imageUrls: string[]
+  questions: { questionText: string; guideText: string | null }[]
+  createdBy: string
+}): Promise<WeeklyContent> {
+  const {
+    serviceDate,
+    passageText,
+    sermonNoteText,
+    rawExtractedText,
+    imageUrls,
+    questions,
+    createdBy,
+  } = params
+
+  const { data: content, error: contentError } = await supabase
+    .from('weekly_contents')
+    .insert({
+      service_date: serviceDate,
+      passage_text: passageText,
+      sermon_note_registration_type: 'IMAGE',
+      sermon_note_text: sermonNoteText,
+      raw_extracted_text: rawExtractedText,
+      status: 'COMPLETED',
+      created_by: createdBy,
+    })
+    .select()
+    .single()
+
+  if (contentError) throw contentError
+
+  if (imageUrls.length > 0) {
+    const imageRows = imageUrls.map((url, i) => ({
       weekly_content_id: content.id,
-      question_text: q.questionText,
-      guide_text: q.guideText,
+      image_url: url,
       sort_order: i,
     }))
-    const { error: questionsError } = await supabase.from('weekly_content_questions').insert(rows)
-    if (questionsError) throw questionsError
+    const { error: imagesError } = await supabase.from('weekly_content_images').insert(imageRows)
+    if (imagesError) throw imagesError
   }
+
+  await insertQuestions(content.id, questions)
 
   return content as WeeklyContent
 }
